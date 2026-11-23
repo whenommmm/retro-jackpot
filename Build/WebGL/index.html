@@ -70,6 +70,8 @@
         companyName: "Vansh Srivastava",
         productName: "Retro Jackpot",
         productVersion: "1.0",
+        // Saved settings (mute) reach browser storage without the deprecated manual sync.
+        autoSyncPersistentDataPath: true,
       }, function (progress) {
         var lit = Math.round(progress * 12);
         var bulbs = document.querySelectorAll(".bulb");
