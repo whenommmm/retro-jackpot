@@ -1,6 +1,6 @@
 # Retro Jackpot
 
-A three-reel slot machine made in Unity 6 with a retro pixel-arcade look. It has a pull lever, marquee bulbs, chiptune sounds, free spins and a progressive jackpot.
+A three-reel slot machine made in Unity 6 with a retro pixel-arcade look. It has a pull lever, marquee bulbs, chiptune sounds, free spins, autoplay and a progressive jackpot.
 
 **▶ Play it in your browser: https://whenommmm.github.io/retro-jackpot/**
 
@@ -31,8 +31,9 @@ About one spin in ten wins. If you run out of credits, the machine offers you a 
 | Stop the reels early (slam stop) | Space during a spin | Click the lever during a spin |
 | Change the bet | ← → (or ↓ ↑) | Arrow buttons on the BET box |
 | Close a popup | Space or Enter | The ✕ button |
-| Mute | M | |
-| Turn the pixel filter on or off | P | |
+| Start or stop autoplay | A | START / STOP under the paytable (its arrows pick 10, 25 or 50 spins) |
+| Sound on or off | M | The speaker button, top right |
+| Pixel filter on or off | P | The grid button, top right |
 
 ---
 
@@ -82,11 +83,11 @@ The build is Gzip-compressed (about 11 MB) with Unity's decompression fallback t
 | **Clean symbol display** | Symbols sit on a fixed 96 px grid, snapped to whole pixels and point-filtered so they stay crisp. The stopped symbol is always exactly centred on the payline. |
 | **Randomized outcomes from a proper RNG** | Each reel's stop is drawn uniformly at random from its strip, behind an `IRandomSource` interface. The result is decided before the reels move, and a chi-square test checks the generator is uniform. |
 | **Winning combinations and payouts** | The paytable lives in a ScriptableObject, and the payouts are unit-tested. The exact odds and return are calculated and checked against simulations of 300,000 and 1,000,000 spins. |
-| **Bonus features** | A progressive jackpot, free spins, slam stop, anticipation, win celebrations that scale with the win, and a refill offer. See [Bonus features](#bonus-features). |
+| **Bonus features** | A progressive jackpot, free spins, autoplay with automatic stops, slam stop, anticipation, win celebrations that scale with the win, and a refill offer. See [Bonus features](#bonus-features). |
 | **OOP, naming and comments** | The rules are a pure C# core, kept separate from the Unity views, with one job per class. Public APIs have XML doc comments, and the tricky parts (braking, the maths, the jackpot) are explained inline. |
 | **Folder structure** | `Assets/Scripts`, `Prefabs`, `Animations`, `UI` and `Sounds`, plus `Data`, `Scenes`, `Shaders`, `Tests` and `WebGLTemplates`. |
 | **WebGL build in `/Build/WebGL`** | It's committed and also deployed to GitHub Pages. |
-| **Meaningful commit history** | One commit per step, from the project setup to this README. |
+| **Meaningful commit history** | One commit per step, from the project setup to autoplay and this README. |
 
 ---
 
@@ -94,12 +95,13 @@ The build is Gzip-compressed (about 11 MB) with Unity's decompression fallback t
 
 - **Progressive jackpot.** 5% of every bet goes into the pool shown at the top right. Three 7s at max bet (100) win the whole pool. The pool starts at 5,000, which is what the 777 line pays at max bet, so betting max never pays less. A jackpot shakes the screen, flashes the JACKPOT sign letters, sets the bulbs chasing and plays a fanfare.
 - **Free spins.** Three bells pay 10× and give 3 free spins at the same bet. They play by themselves and can retrigger, and a summary shows what they won.
+- **Autoplay that looks after the player.** Pick 10, 25 or 50 spins and press START (or A). The banner counts "SPIN 3 OF 10" and the panel counts down. It stops by itself for a big win, the jackpot or free spins, so they're never missed, and once you're down half the balance you started with. It also stops if the bet can't be paid, or when you press STOP; the spin in progress still finishes. The spin counts and the loss limit are designer settings in the config, and the panel shows the limit before you start.
 - **Slam stop.** Press Space or click the lever while the reels spin to stop them early. The result was decided when the spin started, so stopping early only skips the wait and can't change the result.
 - **Anticipation.** When the first two reels match, the last reel spins 1.2 seconds longer. While it spins, its window glows, a rising tone plays and the banner says "COME ON...!".
 - **Win celebrations that scale.** A win lights the payline, pulses the winning symbols and counts the credits up coin by coin. A win of 25× the bet or more also opens a BIG WIN popup, and the jackpot gets the full show.
 - **Marquee lights.** 81 bulbs run a different pattern for idle, spinning, a win and the jackpot.
 - **Free-play refill.** When you can't afford a spin, a YES/NO popup offers to top you back up to 1,000. If you can still afford a smaller bet, the bet drops to it.
-- **Retro presentation.** A pixel filter with scanlines (P), pixel fonts, 12 chiptune sound effects and a loading screen made of marquee bulbs. Mute (M) is remembered between visits.
+- **Retro presentation.** A pixel filter with scanlines, pixel fonts, 12 chiptune sound effects and a loading screen made of marquee bulbs. Sound and the filter each have an on-screen button as well as a key (M, P), and mute is remembered between visits.
 
 ![The jackpot popup after three 7s at max bet](Docs/jackpot.png)
 
@@ -130,12 +132,13 @@ Each reel is a strip of 20 symbols: 8 cherries, 6 bells, 4 BARs and 2 sevens. Th
 ```
 Core: pure C#, no UnityEngine (unit-tested)    Unity layer: MonoBehaviours
 ──────────────────────────────────────────     ─────────────────────────────────────────
-SlotRules    every tunable number               SlotMachineController   runs a spin, start to finish
-ReelStrip    the symbols printed on a reel        ├─ ReelView ×3, LeverView, WindowGlow
-Paytable     what each line pays                  ├─ HudView, PaytableView, PopupView
-CreditBank   credits, bet, jackpot pool           ├─ AudioService
-SlotEngine   takes the bet, picks stops, pays     └─ MarqueeLights, PaylineView, ScreenShake,
-SlotMath     exact odds and return                   JackpotSignView, RetroScreenEffect
+SlotRules        every tunable number           SlotMachineController   runs a spin, start to finish
+ReelStrip        the symbols on a reel            ├─ ReelView ×3, LeverView, WindowGlow
+Paytable         what each line pays              ├─ HudView, PaytableView, PopupView
+CreditBank       credits, bet, jackpot pool       ├─ AutoplayView, IconToggleView ×2
+SlotEngine       takes the bet, picks, pays       ├─ AudioService
+SlotMath         exact odds and return            └─ MarqueeLights, PaylineView, ScreenShake,
+AutoplaySession  when autoplay stops                 JackpotSignView, RetroScreenEffect
 ```
 
 A spin goes like this:
@@ -144,10 +147,12 @@ A spin goes like this:
 2. **Animate.** The reels start one after another. After a minimum spin time, each reel is told the stop index it must land on, left to right. If the first two reels match, the last one gets the anticipation delay.
 3. **Present.** Once every reel has landed, the controller shows the result: the payline glow, the count-up, popups, then any free spins.
 
+Autoplay reuses this round as it is. After each round it reports the new balance, and whether a popup was shown, to `AutoplaySession`, which decides whether to start another spin.
+
 A few decisions behind this:
 
 - **The animation can't change the outcome.** The Core assembly is built with `noEngineReferences`, so the rules can't depend on Unity. They are tested on their own, with a scripted random source that forces exact results.
-- **Designers can tune without code.** The paytable, strip counts, bets and jackpot settings live in `Assets/Data/SlotMachineConfig.asset` and the four `Symbol_*.asset` files. Each config is checked when the game starts; for example, every symbol on a strip must be in the paytable.
+- **Designers can tune without code.** The paytable, strip counts, bets, jackpot and autoplay settings live in `Assets/Data/SlotMachineConfig.asset` and the four `Symbol_*.asset` files. Each config is checked when the game starts; for example, every symbol on a strip must be in the paytable.
 - **The scene is built by code.** The editor scripts in `Assets/Scripts/Editor` generate the import settings, sprite slicing, animator controllers, prefabs and the scene. The layout is reproducible and reviewable as C# instead of hand-placed scene data. The generated files are committed, so the project opens ready to play.
 
 ## Reel animation
@@ -167,7 +172,7 @@ The reels start 0.06 s apart and stop 0.32 s apart. A slam stop brakes over 1.1 
 - **Resolution.** The canvas uses a 1280×720 reference, so the provided 816×624 machine art draws 1:1.
 - **Pixel filter.** `RetroScreenEffect` point-samples the frame down to 720 virtual rows and back up, with faint scanlines and a vignette. Pixels stay square and sharp at any window size. It's subtle on purpose: retro, but every number stays easy to read.
 - **Fonts.** Press Start 2P for headings and VT323 for readouts, as static TextMeshPro atlases.
-- **Generated assets.** `Tools/generate_retro_assets.py` creates the sound effects (square waves, noise and arpeggios) and the extra sprites: the motion-blurred symbols, the bulb and the glow frames.
+- **Generated assets.** `Tools/generate_retro_assets.py` creates the sound effects (square waves, noise and arpeggios) and the extra sprites: the motion-blurred symbols, the bulb, the glow frames, the pixel icons, and blank gold buttons made from the provided YES/NO art.
 
 ---
 
@@ -180,9 +185,9 @@ Assets/
   Prefabs/          Reel, InfoBox, PaytableRow, Popup
   Scenes/           SlotMachine.unity
   Scripts/
-    Core/           Rules, RNG, reel strips, paytable, credit bank, spin engine, maths (pure C#)
+    Core/           Rules, RNG, reel strips, paytable, credit bank, spin engine, maths, autoplay (pure C#)
     Gameplay/       Controller, reels, lever, config ScriptableObjects, QA random source
-    UI/             HUD, paytable panel, popups
+    UI/             HUD, paytable panel, popups, autoplay panel, icon toggles
     Effects/        Marquee lights, payline glow, screen shake, jackpot sign, retro filter
     Audio/          Audio service and button click sounds
     Editor/         Asset, scene and build automation
@@ -198,10 +203,11 @@ Tools/              generate_retro_assets.py
 
 ## Tests
 
-There are 85 EditMode tests, all in the Core:
+There are 94 EditMode tests, all in the Core:
 
 - every payout, and the bet, credit and jackpot rules
 - how free spins trigger and retrigger
+- when autoplay stops: spin count, features, loss limit, an unaffordable bet and the player's stop
 - how the reel strips are built
 - the exact odds
 - two simulation tests (300,000 base-game spins and 1,000,000 max-bet spins)
@@ -224,7 +230,7 @@ Unity -batchmode -projectPath . -runTests -testPlatform EditMode -testResults re
 5. **I leaned into the theme without losing clarity.** The provided art already had a pixel feel. I added pixel fonts, a scanline filter, marquee bulbs and chiptune sound, but kept the resolution high enough that every number reads instantly.
 6. **I tested it as a player.** I played every outcome in browser builds using the QA shortcuts, and fixed what I found. For example, reels could land out of order at first, and the jackpot paid less than the 777 line at max bet. The second one is why the pool now starts at 5,000.
 
-**What I'd add next:** more paylines with line selection, autoplay with a loss limit, saving the balance between sessions, and a portrait layout for phones.
+**What I'd add next:** more paylines with line selection, saving the balance between sessions, and a portrait layout for phones.
 
 ## How I built it
 
