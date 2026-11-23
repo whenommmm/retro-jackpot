@@ -79,6 +79,16 @@ namespace SlotMachine.EditorTools
             SliceStates(Buttons + "button_arrow_right_sheet.png", "arrow_right");
             SliceStates(Buttons + "button_arrow_left_sheet.png", "arrow_left");
 
+            // Blank gold buttons made from the YES/NO art by Tools/generate_retro_assets.py,
+            // in the same four-state layout; labels and icons are drawn on top.
+            SliceStates(Buttons + "button_gold_wide_sheet.png", "gold_wide", 371, 142);
+            SliceStates(Buttons + "button_gold_square_sheet.png", "gold_square", 142, 142);
+
+            // 16x16 pixel icons for the sound and filter toggles, kept hard-edged.
+            string[] icons = { "icon_sound_on", "icon_sound_off", "icon_filter_on", "icon_filter_off" };
+            Slice(Buttons + "icons_toggle_sheet.png",
+                icons.Select((name, i) => (name, new Rect(i * 16, 0, 16, 16))).ToList(), FilterMode.Point, mipmaps: false);
+
             // YES / NO sheet: two columns, three state rows (normal, highlighted, pressed).
             var yesNo = new List<(string, Rect)>();
             string[] states = { "normal", "highlight", "pressed" };
@@ -107,22 +117,24 @@ namespace SlotMachine.EditorTools
             importer.SaveAndReimport();
         }
 
-        private static void SliceStates(string path, string prefix)
+        /// <summary>Slices a sheet of four button states stacked top to bottom, each width x height.</summary>
+        private static void SliceStates(string path, string prefix, int width = 256, int height = 256)
         {
             string[] states = { "normal", "highlight", "pressed", "disabled" };
             var cells = new List<(string, Rect)>();
             for (int row = 0; row < 4; row++)
-                cells.Add((prefix + "_" + states[row], new Rect(0, 1024 - (row + 1) * 256, 256, 256)));
+                cells.Add((prefix + "_" + states[row], new Rect(0, (3 - row) * height, width, height)));
             Slice(path, cells);
         }
 
-        private static void Slice(string path, IList<(string name, Rect rect)> cells)
+        private static void Slice(string path, IList<(string name, Rect rect)> cells,
+            FilterMode filter = FilterMode.Bilinear, bool mipmaps = true)
         {
             var importer = (TextureImporter)AssetImporter.GetAtPath(path);
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Multiple;
-            importer.filterMode = FilterMode.Bilinear;
-            importer.mipmapEnabled = true;
+            importer.filterMode = filter;
+            importer.mipmapEnabled = mipmaps;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.alphaIsTransparency = true;
             importer.SaveAndReimport();

@@ -12,6 +12,8 @@ Outputs
   Assets/UI/Machine/pixel_white.png   4x4 white pixel for bars and overlays
   Assets/UI/Machine/frame_glow.png    9-slice frame for the anticipation glow
   Assets/UI/Machine/jackpot_sign_glow.png  the JACKPOT letters as a white overlay
+  Assets/UI/Buttons/button_gold_*_sheet.png  blank gold buttons (wide and square), four states
+  Assets/UI/Buttons/icons_toggle_sheet.png   16x16 sound and pixel-filter icons, on and off
   Assets/Sounds/*.wav                 22.05 kHz mono 16-bit effects
 """
 import math
@@ -23,6 +25,7 @@ import wave
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SYMBOLS = os.path.join(ROOT, "Assets", "UI", "Symbols")
 MACHINE = os.path.join(ROOT, "Assets", "UI", "Machine")
+BUTTONS = os.path.join(ROOT, "Assets", "UI", "Buttons")
 SOUNDS = os.path.join(ROOT, "Assets", "Sounds")
 RATE = 22050
 
@@ -107,6 +110,93 @@ def make_sign_glow():
                 op[x, y] = (255, 246, 214, 255)
     out.save(os.path.join(MACHINE, "jackpot_sign_glow.png"))
     print("sign glow ->", MACHINE)
+
+
+def make_buttons():
+    """Blank gold buttons cut from the provided YES/NO art (so a label can be
+    drawn on top in Unity), a square version for icon buttons, and the pixel
+    icons for the sound and filter toggles."""
+    from PIL import Image
+
+    src = Image.open(os.path.join(BUTTONS, "button_yes_no_sheet.png")).convert("RGBA")
+    # The YES button in each state row (normal, highlighted, pressed), measured on the sheet.
+    faces = [src.crop((70, top, 441, top + 142)) for top in (83, 274, 465)]
+
+    blanks = []
+    for face in faces:
+        # The face shades only from top to bottom, so copying a clean column
+        # across the lettering erases it without a seam.
+        px = face.load()
+        w, h = face.size
+        for x in range(110, 260):
+            for y in range(h):
+                px[x, y] = px[50, y]
+        blanks.append(face)
+
+    # Disabled: the normal face in grey, a little darker.
+    grey = blanks[0].convert("LA").convert("RGBA")
+    gp = grey.load()
+    for y in range(grey.size[1]):
+        for x in range(grey.size[0]):
+            r, g, b, a = gp[x, y]
+            gp[x, y] = (int(r * 0.75), int(g * 0.75), int(b * 0.8), a)
+    blanks.append(grey)
+
+    w, h = blanks[0].size
+    wide = Image.new("RGBA", (w, h * 4), (0, 0, 0, 0))
+    square = Image.new("RGBA", (h, h * 4), (0, 0, 0, 0))
+    half = h // 2
+    for row, face in enumerate(blanks):
+        wide.paste(face, (0, row * h))
+        # Keep both rounded ends and drop the middle for a square button.
+        square.paste(face.crop((0, 0, half, h)), (0, row * h))
+        square.paste(face.crop((w - (h - half), 0, w, h)), (half, row * h))
+    wide.save(os.path.join(BUTTONS, "button_gold_wide_sheet.png"))
+    square.save(os.path.join(BUTTONS, "button_gold_square_sheet.png"))
+
+    # 16x16 pixel icons, white with a dark drop shadow like the YES/NO lettering.
+    speaker = [
+        ".....X",
+        "....XX",
+        "...XXX",
+        "XXXXXX",
+        "XXXXXX",
+        "XXXXXX",
+        "XXXXXX",
+        "XXXXXX",
+        "XXXXXX",
+        "...XXX",
+        "....XX",
+        ".....X",
+    ]
+    waves = [(8, 3), (9, 4), (9, 5), (9, 6), (9, 7), (8, 8),
+             (10, 1), (11, 2), (12, 3), (12, 4), (12, 5), (12, 6), (12, 7), (12, 8), (11, 9), (10, 10)]
+    cross = [(8 + i, 3 + i) for i in range(5)] + [(12 - i, 3 + i) for i in range(5)]
+    speaker_px = [(x, y) for y, row in enumerate(speaker) for x, c in enumerate(row) if c == "X"]
+    checker = [(x, y) for y in range(12) for x in range(12) if (x // 3 + y // 3) % 2 == 0]
+    slash = [(11 - i, i) for i in range(12)] + [(12 - i, i) for i in range(1, 12)]
+
+    def icon(pixels, dim=()):
+        img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+        for x, y in list(pixels) + list(dim):
+            img.putpixel((x + 2, y + 3), (36, 18, 4, 230))  # shadow, one pixel down-right
+        for x, y in dim:
+            img.putpixel((x + 1, y + 2), (255, 255, 255, 110))
+        for x, y in pixels:
+            img.putpixel((x + 1, y + 2), (255, 255, 255, 255))
+        return img
+
+    icons = [
+        icon(speaker_px + waves),                     # sound on
+        icon(speaker_px + cross),                     # sound off
+        icon(checker),                                # pixel filter on
+        icon(slash, dim=[p for p in checker if p not in slash]),  # pixel filter off
+    ]
+    sheet = Image.new("RGBA", (16 * len(icons), 16), (0, 0, 0, 0))
+    for i, img in enumerate(icons):
+        sheet.paste(img, (i * 16, 0))
+    sheet.save(os.path.join(BUTTONS, "icons_toggle_sheet.png"))
+    print("gold buttons, toggle icons ->", BUTTONS)
 
 
 # ----------------------------------------------------------------- audio ----
@@ -254,4 +344,5 @@ if __name__ == "__main__":
     make_blurred_symbols()
     make_bulb_and_pixel()
     make_sign_glow()
+    make_buttons()
     make_sounds()
