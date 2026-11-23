@@ -67,6 +67,13 @@ namespace SlotMachine.Core
             Credits += amount;
         }
 
+        /// <summary>Removes credits without placing a bet (cash-out; also used by QA tools).</summary>
+        public void Withdraw(int amount)
+        {
+            if (amount < 0 || amount > Credits) throw new ArgumentOutOfRangeException(nameof(amount));
+            Credits -= amount;
+        }
+
         /// <summary>Pays out the whole jackpot pool and reseeds it.</summary>
         public int TakeJackpot()
         {

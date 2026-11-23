@@ -89,6 +89,16 @@ namespace SlotMachine.Tests
         }
 
         [Test]
+        public void Withdraw_RemovesCredits_AndRefusesToOverdraw()
+        {
+            bank.Withdraw(400);
+
+            Assert.AreEqual(600, bank.Credits);
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => bank.Withdraw(601));
+            Assert.AreEqual(600, bank.Credits);
+        }
+
+        [Test]
         public void Deposit_RejectsNegativeAmounts()
         {
             Assert.Throws<System.ArgumentOutOfRangeException>(() => bank.Deposit(-1));
