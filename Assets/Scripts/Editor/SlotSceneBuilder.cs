@@ -203,6 +203,10 @@ namespace SlotMachine.EditorTools
 
             var machine = BuildMachine(stage, reelPrefab, out var reels, out var glows, out var payline, out var sign, out var lever);
             var hud = BuildHud(stage, infoBoxPrefab, audioService, out var paytable, rowPrefab);
+            var soundToggle = BuildIconToggle(hud.transform, "SoundToggle", "SOUND", new Vector2(508, 306),
+                "icon_sound_on", "icon_sound_off", audioService);
+            var filterToggle = BuildIconToggle(hud.transform, "FilterToggle", "FILTER", new Vector2(564, 306),
+                "icon_filter_on", "icon_filter_off", audioService);
 
             var popupGo = Instantiate(popupPrefab, canvasGo.transform, "Popup", Vector2.zero);
             var popup = popupGo.GetComponent<PopupView>();
@@ -223,6 +227,8 @@ namespace SlotMachine.EditorTools
             Set(game, "screenShake", shake);
             Set(game, "audioService", audioService);
             Set(game, "retroEffect", retro);
+            Set(game, "soundToggle", soundToggle);
+            Set(game, "filterToggle", filterToggle);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -394,7 +400,7 @@ namespace SlotMachine.EditorTools
 
             // ----- top banner and bottom controls hint
             var message = AddText("Message", hudRoot, heading, "PULL THE LEVER OR PRESS SPACE", 18, Lavender, new Vector2(760, 30), new Vector2(-43, 304));
-            var controls = AddText("Controls", hudRoot, body, "SPACE: SPIN / STOP    ARROWS: BET\nM: MUTE    P: PIXEL FILTER", 22,
+            var controls = AddText("Controls", hudRoot, body, "SPACE: SPIN / STOP    ARROWS: BET\nM: SOUND    P: FILTER", 22,
                 new Color(0.6f, 0.62f, 0.85f), new Vector2(290, 50), new Vector2(-477, -296));
             controls.lineSpacing = -8f;
 
@@ -408,6 +414,28 @@ namespace SlotMachine.EditorTools
             Set(hud, "betDown", betDown);
             Set(hud, "betUp", betUp);
             return hud;
+        }
+
+        /// <summary>A square gold button with an on/off icon and a small caption underneath.</summary>
+        private static IconToggleView BuildIconToggle(Transform parent, string name, string caption, Vector2 position,
+            string onIcon, string offIcon, AudioService audioService)
+        {
+            const string sheet = Buttons + "button_gold_square_sheet.png";
+            const string icons = Buttons + "icons_toggle_sheet.png";
+            var rt = Rect(name, parent, new Vector2(44, 44), position);
+            var button = AddSpriteButton(rt, LoadSprite(sheet, "gold_square_normal"), LoadSprite(sheet, "gold_square_highlight"),
+                LoadSprite(sheet, "gold_square_pressed"), LoadSprite(sheet, "gold_square_disabled"));
+            // The face sits a little above the button's dark bottom rim, so the icon does too.
+            var icon = AddImage(Rect("Icon", rt, new Vector2(32, 32), new Vector2(0, 2)), LoadSprite(icons, onIcon));
+            AddText("Caption", rt, body, caption, 18, Lavender, new Vector2(60, 16), new Vector2(0, -34));
+            AddClick(button, audioService);
+
+            var view = rt.gameObject.AddComponent<IconToggleView>();
+            Set(view, "button", button);
+            Set(view, "icon", icon);
+            Set(view, "onSprite", LoadSprite(icons, onIcon));
+            Set(view, "offSprite", LoadSprite(icons, offIcon));
+            return view;
         }
 
         private static void SetLabel(GameObject infoBox, string text) =>

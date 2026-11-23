@@ -38,6 +38,8 @@ namespace SlotMachine.Gameplay
         [SerializeField] private ScreenShake screenShake;
         [SerializeField] private AudioService audioService;
         [SerializeField] private RetroScreenEffect retroEffect;
+        [SerializeField] private IconToggleView soundToggle;
+        [SerializeField] private IconToggleView filterToggle;
 
         [Header("Timing (seconds)")]
         [SerializeField] private float leverToReels = 0.15f;
@@ -90,6 +92,8 @@ namespace SlotMachine.Gameplay
             hud.BetDownClicked += () => ChangeBet(-1);
             hud.BetUpClicked += () => ChangeBet(+1);
             popup.Opened += () => audioService.Play(Sfx.PopupOpen);
+            soundToggle.Clicked += ToggleSound;
+            filterToggle.Clicked += ToggleFilter;
         }
 
         private void Start()
@@ -102,6 +106,8 @@ namespace SlotMachine.Gameplay
             RefreshBet();
             hud.ShowMessage("PULL THE LEVER OR PRESS SPACE", MessageTone.Neutral);
             lights.SetShow(LightShow.Idle);
+            soundToggle.SetOn(!audioService.Muted);
+            filterToggle.SetOn(retroEffect.Pixelate);
         }
 
         private void Update()
@@ -112,8 +118,8 @@ namespace SlotMachine.Gameplay
                 else OnSpinInput();
             }
 
-            if (Input.GetKeyDown(KeyCode.M)) audioService.ToggleMute();
-            if (Input.GetKeyDown(KeyCode.P)) retroEffect.Pixelate = !retroEffect.Pixelate;
+            if (Input.GetKeyDown(KeyCode.M)) ToggleSound();
+            if (Input.GetKeyDown(KeyCode.P)) ToggleFilter();
 
             if (popup.IsOpen) return;
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.DownArrow)) ChangeBet(-1, fromKeyboard: true);
@@ -170,6 +176,18 @@ namespace SlotMachine.Gameplay
             if (!changed) return;
             if (fromKeyboard) audioService.Play(Sfx.ButtonClick); // buttons play their own click
             RefreshBet();
+        }
+
+        private void ToggleSound()
+        {
+            audioService.ToggleMute();
+            soundToggle.SetOn(!audioService.Muted);
+        }
+
+        private void ToggleFilter()
+        {
+            retroEffect.Pixelate = !retroEffect.Pixelate;
+            filterToggle.SetOn(retroEffect.Pixelate);
         }
 
         /// <summary>One paid spin, followed by any free spins it triggers.</summary>
