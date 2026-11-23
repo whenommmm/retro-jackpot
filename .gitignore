@@ -32,3 +32,6 @@ TestResults*.xml
 *.log
 
 # The WebGL build in /Build/WebGL is committed on purpose (assignment requirement).
+
+# QA development builds (contain cheat shortcuts) are never committed
+/Builds/
