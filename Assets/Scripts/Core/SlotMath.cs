@@ -43,5 +43,27 @@ namespace SlotMachine.Core
             if (f >= 1.0) throw new InvalidOperationException("Free spins would never end (expected retriggers >= 1).");
             return BaseReturn(strips, paytable) / (1.0 - f);
         }
+
+        /// <summary>
+        /// Long-run return per credit for a player who always bets max, so
+        /// every jackpot line wins the progressive pool instead of its
+        /// multiplier. Over many jackpots each win pays the seed plus whatever
+        /// the paid spins fed in since the last one, so the pool returns the
+        /// seed on every hit plus the contribution percentage of every bet.
+        /// Assumes the seed is at least the line win it replaces.
+        /// </summary>
+        public static double ReturnToPlayerAtMaxBet(IReadOnlyList<ReelStrip> strips, SlotRules rules)
+        {
+            var paytable = rules.Paytable;
+            double f = FreeSpinsPerSpin(strips, paytable);
+            if (f >= 1.0) throw new InvalidOperationException("Free spins would never end (expected retriggers >= 1).");
+
+            double p = ProbabilityOfLine(strips, rules.JackpotSymbol);
+            double perSpin = BaseReturn(strips, paytable)
+                             - p * paytable.Get(rules.JackpotSymbol).Multiplier
+                             + p * rules.JackpotSeed / rules.MaxBet;
+            // Free spins pay like spins but feed nothing into the pool.
+            return perSpin / (1.0 - f) + rules.JackpotContributionPercent / 100.0;
+        }
     }
 }

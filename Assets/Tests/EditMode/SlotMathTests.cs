@@ -35,6 +35,39 @@ namespace SlotMachine.Tests
         }
 
         [Test]
+        public void ReturnAtMaxBet_AddsTheJackpotContributionOnTop()
+        {
+            // The 5000 seed pays exactly what the 777 line would (50 x 100), so
+            // always betting max returns the ordinary RTP plus the 5% contribution.
+            double expected = 0.84 / (1 - 0.081) + 0.05;
+            Assert.AreEqual(expected, SlotMath.ReturnToPlayerAtMaxBet(engine.Strips, rules), 1e-9);
+        }
+
+        [Test]
+        public void SimulatedMaxBetPlay_MatchesTheReturnIncludingTheJackpot()
+        {
+            // Jackpots are rare (1 in 1000) and large, so this needs more spins
+            // and a looser tolerance than the base-game simulation.
+            const int paidSpins = 1_000_000;
+            engine.Bank.IncreaseBet(); engine.Bank.IncreaseBet(); // 100
+            long wagered = 0, paid = 0;
+            int spins = 0, jackpots = 0;
+
+            while (spins < paidSpins || engine.HasFreeSpins)
+            {
+                if (engine.Bank.Credits < rules.MaxBet) engine.Bank.Deposit(10_000_000);
+                Assert.IsTrue(engine.TrySpin(out var r));
+                if (!r.IsFreeSpin) { wagered += r.Bet; spins++; }
+                if (r.IsJackpot) jackpots++;
+                paid += r.Payout;
+            }
+
+            Assert.Greater(jackpots, 0);
+            double rtp = (double)paid / wagered;
+            Assert.AreEqual(SlotMath.ReturnToPlayerAtMaxBet(engine.Strips, rules), rtp, 0.03, "max-bet return");
+        }
+
+        [Test]
         public void SimulatedPlay_MatchesTheoreticalHitRateAndReturn()
         {
             const int paidSpins = 300_000;

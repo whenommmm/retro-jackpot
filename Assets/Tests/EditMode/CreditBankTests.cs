@@ -20,18 +20,28 @@ namespace SlotMachine.Tests
         {
             Assert.AreEqual(1000, bank.Credits);
             Assert.AreEqual(10, bank.CurrentBet);
-            Assert.AreEqual(1000, bank.JackpotPool);
+            Assert.AreEqual(5000, bank.JackpotPool);
         }
 
         [Test]
-        public void TryPlaceBet_TakesTheBetAndFeedsTenPercentToTheJackpot()
+        public void TryPlaceBet_TakesTheBetAndFeedsFivePercentToTheJackpot()
         {
             bank.IncreaseBet(); // 50
 
             Assert.IsTrue(bank.TryPlaceBet(out int bet));
             Assert.AreEqual(50, bet);
             Assert.AreEqual(950, bank.Credits);
-            Assert.AreEqual(1005, bank.JackpotPool);
+            Assert.AreEqual(5002, bank.JackpotPool); // 2.5, the half carried
+        }
+
+        [Test]
+        public void TryPlaceBet_CarriesFractionalContributionsUntilTheyMakeACredit()
+        {
+            bank.TryPlaceBet(out _); // 5% of 10 = 0.5
+            Assert.AreEqual(5000, bank.JackpotPool);
+
+            bank.TryPlaceBet(out _); // another 0.5 completes a credit
+            Assert.AreEqual(5001, bank.JackpotPool);
         }
 
         [Test]
@@ -72,10 +82,10 @@ namespace SlotMachine.Tests
         public void TakeJackpot_PaysThePoolAndReseedsIt()
         {
             bank.IncreaseBet(); bank.IncreaseBet();
-            bank.TryPlaceBet(out _); // pool 1010
+            bank.TryPlaceBet(out _); // pool 5005
 
-            Assert.AreEqual(1010, bank.TakeJackpot());
-            Assert.AreEqual(1000, bank.JackpotPool);
+            Assert.AreEqual(5005, bank.TakeJackpot());
+            Assert.AreEqual(5000, bank.JackpotPool);
         }
 
         [Test]

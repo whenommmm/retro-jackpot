@@ -10,6 +10,11 @@ namespace SlotMachine.Core
     {
         private readonly SlotRules rules;
 
+        // Contributions are a percentage of whole-credit bets, so they can be
+        // fractional (5% of 10 is 0.5). The leftover hundredths are carried
+        // here and added to the pool once they make a whole credit.
+        private int jackpotHundredths;
+
         public int Credits { get; private set; }
         public int BetIndex { get; private set; }
         public int JackpotPool { get; private set; }
@@ -57,7 +62,9 @@ namespace SlotMachine.Core
             bet = CurrentBet;
             if (Credits < bet) return false;
             Credits -= bet;
-            JackpotPool += bet * rules.JackpotContributionPercent / 100;
+            jackpotHundredths += bet * rules.JackpotContributionPercent;
+            JackpotPool += jackpotHundredths / 100;
+            jackpotHundredths %= 100;
             return true;
         }
 

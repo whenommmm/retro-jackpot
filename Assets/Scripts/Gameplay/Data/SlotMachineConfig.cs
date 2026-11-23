@@ -20,9 +20,10 @@ namespace SlotMachine.Gameplay
 
         [Header("Progressive jackpot")]
         [SerializeField] private SymbolType jackpotSymbol = SymbolType.Seven;
-        [SerializeField, Min(0)] private int jackpotSeed = 1000;
+        [Tooltip("Pool value at start and after every win. Keep it at or above the jackpot symbol's multiplier x max bet.")]
+        [SerializeField, Min(0)] private int jackpotSeed = 5000;
         [Tooltip("Percentage of every paid bet that grows the jackpot.")]
-        [SerializeField, Range(0, 100)] private int jackpotContributionPercent = 10;
+        [SerializeField, Range(0, 100)] private int jackpotContributionPercent = 5;
 
         [Header("Reels")]
         [SerializeField, Min(2)] private int reelCount = 3;

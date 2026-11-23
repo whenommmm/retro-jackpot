@@ -80,11 +80,14 @@ namespace SlotMachine.Core
                 var entry = Rules.Paytable.Get(symbols[0]);
 
                 // Jackpot symbols at max bet win the progressive pool; at any
-                // lower stake they pay their ordinary multiplier.
+                // lower stake they pay their ordinary multiplier. Betting max
+                // must never pay less, so the jackpot is at least the line win
+                // (the default seed already guarantees this; the guard keeps it
+                // true for any config a designer tries).
                 if (symbols[0] == Rules.JackpotSymbol && bet == Rules.MaxBet)
                 {
                     isJackpot = true;
-                    payout = Bank.TakeJackpot();
+                    payout = Math.Max(Bank.TakeJackpot(), bet * entry.Multiplier);
                 }
                 else
                 {

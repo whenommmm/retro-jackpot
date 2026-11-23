@@ -20,7 +20,7 @@ MonoBehaviour:
   betOptions: 0a0000003200000064000000
   startingCredits: 1000
   jackpotSymbol: 0
-  jackpotSeed: 1000
-  jackpotContributionPercent: 10
+  jackpotSeed: 5000
+  jackpotContributionPercent: 5
   reelCount: 3
   stripSeed: 7

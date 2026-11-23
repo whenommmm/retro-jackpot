@@ -65,8 +65,25 @@ namespace SlotMachine.Tests
             var result = Spin(SymbolType.Seven, SymbolType.Seven, SymbolType.Seven);
 
             Assert.IsTrue(result.IsJackpot);
-            Assert.AreEqual(1010, result.Payout); // seed 1000 + 10% of this bet
-            Assert.AreEqual(1000, result.JackpotPoolAfter);
+            Assert.AreEqual(5005, result.Payout); // seed 5000 + 5% of this bet
+            Assert.AreEqual(5000, result.JackpotPoolAfter);
+        }
+
+        [Test]
+        public void Jackpot_NeverPaysLessThanTheLineItReplaces()
+        {
+            // A config with a tiny seed: the 777 line at max bet is worth 5000.
+            var cheap = new SlotRules(3, rules.StripComposition, rules.Paytable, rules.BetOptions,
+                startingCredits: 1000, jackpotSymbol: SymbolType.Seven, jackpotSeed: 100,
+                jackpotContributionPercent: 5, stripSeed: rules.StripSeed);
+            bank = new CreditBank(cheap);
+            engine = new SlotEngine(cheap, bank, random);
+            bank.IncreaseBet(); bank.IncreaseBet(); // 100
+
+            var result = Spin(SymbolType.Seven, SymbolType.Seven, SymbolType.Seven);
+
+            Assert.IsTrue(result.IsJackpot);
+            Assert.AreEqual(5000, result.Payout);
         }
 
         [Test]
@@ -78,7 +95,7 @@ namespace SlotMachine.Tests
 
             Assert.IsFalse(result.IsJackpot);
             Assert.AreEqual(2500, result.Payout);
-            Assert.AreEqual(1005, bank.JackpotPool);
+            Assert.AreEqual(5002, bank.JackpotPool); // 5% of 50 = 2.5; the half credit is carried
         }
 
         [Test]

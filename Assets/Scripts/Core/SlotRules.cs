@@ -63,7 +63,8 @@ namespace SlotMachine.Core
         /// <summary>
         /// The shipped balance. Strips of 20: cheap symbols are printed often,
         /// rich ones rarely, so a hit happens about 1 spin in 10 and the
-        /// expected return (before the jackpot) is about 91%.
+        /// expected return is 91.4% at any bet, rising to 96.4% for a player
+        /// who always bets max and so plays for the progressive jackpot.
         /// </summary>
         public static SlotRules Default() => new SlotRules(
             reelCount: 3,
@@ -84,8 +85,10 @@ namespace SlotMachine.Core
             betOptions: new[] { 10, 50, 100 },
             startingCredits: 1000,
             jackpotSymbol: SymbolType.Seven,
-            jackpotSeed: 1000,
-            jackpotContributionPercent: 10,
+            // The pool starts at 50 x max bet, so the jackpot is never worth
+            // less than the 777 line it replaces at max bet.
+            jackpotSeed: 5000,
+            jackpotContributionPercent: 5,
             stripSeed: 7);
     }
 }
