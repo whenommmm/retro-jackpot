@@ -81,6 +81,8 @@
         companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
         productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        // Saved settings (mute) reach browser storage without the deprecated manual sync.
+        autoSyncPersistentDataPath: true,
       }, function (progress) {
         var lit = Math.round(progress * 12);
         var bulbs = document.querySelectorAll(".bulb");
