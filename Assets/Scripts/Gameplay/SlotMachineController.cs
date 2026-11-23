@@ -13,8 +13,8 @@ namespace SlotMachine.Gameplay
     /// Runs the machine. On every spin the engine decides the outcome first;
     /// everything this class does afterwards (lever, reels, sounds, lights,
     /// count-up, popups) only reveals that fixed result. It owns the flow and
-    /// the input, and delegates rules to <see cref="SlotEngine"/> and display
-    /// to the views.
+    /// the input, and delegates rules to <see cref="SlotEngine"/>, autoplay's
+    /// stop decisions to <see cref="AutoplaySession"/> and display to the views.
     /// </summary>
     public sealed class SlotMachineController : MonoBehaviour
     {
@@ -40,6 +40,7 @@ namespace SlotMachine.Gameplay
         [SerializeField] private RetroScreenEffect retroEffect;
         [SerializeField] private IconToggleView soundToggle;
         [SerializeField] private IconToggleView filterToggle;
+        [SerializeField] private AutoplayView autoplayPanel;
 
         [Header("Timing (seconds)")]
         [SerializeField] private float leverToReels = 0.15f;
@@ -50,6 +51,8 @@ namespace SlotMachine.Gameplay
         [Tooltip("Extra spin on the last reel when the first reels already match.")]
         [SerializeField] private float anticipationTime = 1.2f;
         [SerializeField] private float freeSpinPause = 0.8f;
+        [Tooltip("Pause between autoplay spins, so each result can be read.")]
+        [SerializeField] private float autoplayPause = 0.5f;
 
         [Header("Presentation")]
         [Tooltip("Wins of at least this many times the bet get the BIG WIN popup.")]
@@ -64,6 +67,11 @@ namespace SlotMachine.Gameplay
         private State state = State.Idle;
         private bool slamRequested;
         private int freeSpinWinnings;
+
+        private AutoplaySession autoplay;  // the current (or last) autoplay run
+        private bool autoplayLoopRunning;  // from START until the run has wound down
+        private int autoplayChoice;        // index into the config's spin options
+        private bool roundHadFeature;      // the round opened a big-win, jackpot or free-spins popup
 
         private CreditBank Bank => engine.Bank;
 
@@ -94,6 +102,9 @@ namespace SlotMachine.Gameplay
             popup.Opened += () => audioService.Play(Sfx.PopupOpen);
             soundToggle.Clicked += ToggleSound;
             filterToggle.Clicked += ToggleFilter;
+            autoplayPanel.FewerClicked += () => ChangeAutoplaySpins(-1);
+            autoplayPanel.MoreClicked += () => ChangeAutoplaySpins(+1);
+            autoplayPanel.ToggleClicked += ToggleAutoplay;
         }
 
         private void Start()
@@ -108,6 +119,8 @@ namespace SlotMachine.Gameplay
             lights.SetShow(LightShow.Idle);
             soundToggle.SetOn(!audioService.Muted);
             filterToggle.SetOn(retroEffect.Pixelate);
+            autoplayPanel.ShowStopRules(config.AutoplayLossLimitPercent);
+            RefreshAutoplay();
         }
 
         private void Update()
@@ -124,6 +137,7 @@ namespace SlotMachine.Gameplay
             if (popup.IsOpen) return;
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.DownArrow)) ChangeBet(-1, fromKeyboard: true);
             if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.UpArrow)) ChangeBet(+1, fromKeyboard: true);
+            if (Input.GetKeyDown(KeyCode.A)) ToggleAutoplay();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             HandleQaKeys();
@@ -161,17 +175,20 @@ namespace SlotMachine.Gameplay
         }
 #endif
 
-        /// <summary>Lever click, Space or Enter: spin when idle, slam the reels to a stop while spinning.</summary>
+        /// <summary>
+        /// Lever click, Space or Enter: spin when idle, slam the reels to a stop
+        /// while spinning (during autoplay too).
+        /// </summary>
         private void OnSpinInput()
         {
             if (popup.IsOpen) return;
-            if (state == State.Idle) StartCoroutine(RunSpins());
-            else if (state == State.Spinning) slamRequested = true;
+            if (state == State.Spinning) slamRequested = true;
+            else if (state == State.Idle && !autoplayLoopRunning) StartCoroutine(RunSpins());
         }
 
         private void ChangeBet(int direction, bool fromKeyboard = false)
         {
-            if (state != State.Idle || engine.HasFreeSpins || popup.IsOpen) return;
+            if (state != State.Idle || autoplayLoopRunning || engine.HasFreeSpins || popup.IsOpen) return;
             bool changed = direction < 0 ? Bank.DecreaseBet() : Bank.IncreaseBet();
             if (!changed) return;
             if (fromKeyboard) audioService.Play(Sfx.ButtonClick); // buttons play their own click
@@ -190,28 +207,126 @@ namespace SlotMachine.Gameplay
             filterToggle.SetOn(retroEffect.Pixelate);
         }
 
-        /// <summary>One paid spin, followed by any free spins it triggers.</summary>
+        /// <summary>A single spin from the lever or Space: one round, then back to idle.</summary>
         private IEnumerator RunSpins()
         {
+            yield return StartCoroutine(PlayRound("GOOD LUCK!"));
+            EndRound();
+        }
+
+        /// <summary>One paid spin, followed by any free spins it triggers.</summary>
+        private IEnumerator PlayRound(string caption)
+        {
+            roundHadFeature = false;
             do
             {
-                yield return StartCoroutine(PlayOneSpin());
+                yield return StartCoroutine(PlayOneSpin(caption));
                 if (engine.HasFreeSpins)
                 {
                     hud.ShowMessage("FREE SPIN COMING UP...", MessageTone.Bonus);
                     yield return new WaitForSeconds(freeSpinPause);
                 }
             } while (engine.HasFreeSpins);
+        }
 
+        /// <summary>Back to idle: controls on, and help if the next spin can't be paid.</summary>
+        private void EndRound()
+        {
             state = State.Idle;
             hud.SetBetControlsEnabled(true);
+            RefreshAutoplay();
 
-            if (popup.IsOpen) yield break; // a refill offer is already showing
+            if (popup.IsOpen) return; // a refill offer is already showing
             if (!Bank.CanAffordAnyBet) OfferRefill();
             else if (!Bank.CanAffordCurrentBet) LowerBetToCredits();
         }
 
-        private IEnumerator PlayOneSpin()
+        // ---------------------------------------------------------- autoplay
+
+        /// <summary>START begins autoplay with the chosen number of spins; STOP ends it after the current spin.</summary>
+        private void ToggleAutoplay()
+        {
+            if (autoplayLoopRunning)
+            {
+                autoplay.Stop();
+                RefreshAutoplay();
+                return;
+            }
+            if (state != State.Idle || engine.HasFreeSpins || popup.IsOpen) return;
+            StartCoroutine(RunAutoplay());
+        }
+
+        private void ChangeAutoplaySpins(int direction)
+        {
+            if (autoplayLoopRunning || state != State.Idle) return;
+            autoplayChoice = Mathf.Clamp(autoplayChoice + direction, 0, config.AutoplaySpinOptions.Count - 1);
+            RefreshAutoplay();
+        }
+
+        /// <summary>
+        /// Plays rounds back to back until the session says stop. Each one is
+        /// an ordinary round, popups and free spins included; only starting
+        /// the next spin and deciding when to stop are automatic.
+        /// </summary>
+        private IEnumerator RunAutoplay()
+        {
+            int lossLimit = AutoplaySession.LossLimitFor(Bank.Credits, config.AutoplayLossLimitPercent);
+            autoplay = new AutoplaySession(config.AutoplaySpinOptions[autoplayChoice], Bank.Credits, lossLimit);
+            autoplayLoopRunning = true;
+            hud.SetBetControlsEnabled(false);
+
+            while (autoplay.TryBeginSpin(Bank.CanAffordCurrentBet))
+            {
+                RefreshAutoplay();
+                yield return StartCoroutine(PlayRound("AUTOPLAY: SPIN " + (autoplay.SpinsPlayed + 1) + " OF " + autoplay.TotalSpins));
+                autoplay.RecordSpin(Bank.Credits, roundHadFeature);
+                RefreshAutoplay();
+
+                // A short breather so each result can be read; STOP cuts it short.
+                for (float t = 0f; t < autoplayPause && autoplay.IsRunning; t += Time.deltaTime)
+                    yield return null;
+            }
+
+            autoplayLoopRunning = false;
+            ShowAutoplayResult();
+            EndRound();
+        }
+
+        private void ShowAutoplayResult()
+        {
+            int net = autoplay.NetResult(Bank.Credits);
+            string tally = net > 0 ? "UP " + HudView.Format(net) : net < 0 ? "DOWN " + HudView.Format(-net) : "BROKE EVEN";
+            switch (autoplay.StopReason)
+            {
+                case AutoplayStopReason.Finished:
+                    hud.ShowMessage("AUTOPLAY DONE: " + tally, net > 0 ? MessageTone.Win : MessageTone.Neutral);
+                    break;
+                case AutoplayStopReason.Player:
+                    hud.ShowMessage("AUTOPLAY STOPPED: " + tally, MessageTone.Neutral);
+                    break;
+                case AutoplayStopReason.LossLimit:
+                    hud.ShowMessage("LOSS LIMIT REACHED: " + tally, MessageTone.Warning);
+                    break;
+                // Feature: the win message stays up. CannotAffordBet: EndRound
+                // lowers the bet or offers a refill, which says more.
+            }
+        }
+
+        private void RefreshAutoplay()
+        {
+            var options = config.AutoplaySpinOptions;
+            if (autoplayLoopRunning)
+                autoplayPanel.ShowRunning(autoplay.SpinsRemaining, canStop: autoplay.IsRunning);
+            else
+                autoplayPanel.ShowReady(options[autoplayChoice],
+                    canFewer: autoplayChoice > 0,
+                    canMore: autoplayChoice < options.Count - 1,
+                    canStart: state == State.Idle && !engine.HasFreeSpins);
+        }
+
+        // -------------------------------------------------------------- spin
+
+        private IEnumerator PlayOneSpin(string caption)
         {
             if (!engine.HasFreeSpins && !Bank.CanAffordCurrentBet)
             {
@@ -226,6 +341,7 @@ namespace SlotMachine.Gameplay
             state = State.Spinning;
             slamRequested = false;
             hud.SetBetControlsEnabled(false);
+            RefreshAutoplay();
             payline.Clear();
             lights.SetShow(LightShow.Spinning);
             lever.PlayPull();
@@ -242,7 +358,7 @@ namespace SlotMachine.Gameplay
             }
             else
             {
-                hud.ShowMessage("GOOD LUCK!", MessageTone.Neutral);
+                hud.ShowMessage(caption, MessageTone.Neutral);
             }
 
             yield return new WaitForSeconds(leverToReels);
@@ -353,19 +469,23 @@ namespace SlotMachine.Gameplay
                 hud.SetJackpot(result.JackpotPoolAfter);
                 if (result.IsFreeSpin) freeSpinWinnings += result.Payout;
 
+                // Anything that earns a popup also ends autoplay, so it's never missed.
                 if (result.IsJackpot)
                 {
+                    roundHadFeature = true;
                     popup.ShowInfo("JACKPOT!", "777 AT MAX BET\nYOU WIN " + HudView.Format(result.Payout) + " CREDITS");
                     yield return StartCoroutine(popup.WaitUntilClosed());
                 }
                 else if (bigWin)
                 {
+                    roundHadFeature = true;
                     popup.ShowInfo("BIG WIN!", "3 x " + symbol.DisplayName.ToUpperInvariant() + "\n+" + HudView.Format(result.Payout) + " CREDITS");
                     yield return StartCoroutine(popup.WaitUntilClosed());
                 }
 
                 if (result.FreeSpinsAwarded > 0)
                 {
+                    roundHadFeature = true;
                     if (!result.IsFreeSpin) freeSpinWinnings = 0;
                     audioService.Play(Sfx.FreeSpins);
                     hud.SetFreeSpins(engine.FreeSpinsRemaining, engine.FreeSpinBet);

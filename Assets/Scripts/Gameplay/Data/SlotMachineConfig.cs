@@ -30,10 +30,18 @@ namespace SlotMachine.Gameplay
         [Tooltip("Fixes the order of symbols on the strips, so every session uses the same reels.")]
         [SerializeField] private int stripSeed = 7;
 
+        [Header("Autoplay")]
+        [Tooltip("Spin counts the player can pick, smallest first.")]
+        [SerializeField] private int[] autoplaySpinOptions = { 10, 25, 50 };
+        [Tooltip("Autoplay stops once the player is down this percentage of the balance they started it with.")]
+        [SerializeField, Range(1, 100)] private int autoplayLossLimitPercent = 50;
+
         private Dictionary<SymbolType, SymbolDefinition> lookup;
 
         public IReadOnlyList<SymbolDefinition> Symbols => symbols;
         public SymbolType JackpotSymbol => jackpotSymbol;
+        public IReadOnlyList<int> AutoplaySpinOptions => autoplaySpinOptions;
+        public int AutoplayLossLimitPercent => autoplayLossLimitPercent;
 
         public SymbolDefinition GetSymbol(SymbolType type)
         {

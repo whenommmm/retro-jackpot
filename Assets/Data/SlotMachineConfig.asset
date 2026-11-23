@@ -24,3 +24,5 @@ MonoBehaviour:
   jackpotContributionPercent: 5
   reelCount: 3
   stripSeed: 7
+  autoplaySpinOptions: 0a0000001900000032000000
+  autoplayLossLimitPercent: 50

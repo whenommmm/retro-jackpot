@@ -207,6 +207,7 @@ namespace SlotMachine.EditorTools
                 "icon_sound_on", "icon_sound_off", audioService);
             var filterToggle = BuildIconToggle(hud.transform, "FilterToggle", "FILTER", new Vector2(564, 306),
                 "icon_filter_on", "icon_filter_off", audioService);
+            var autoplayPanel = BuildAutoplayPanel(hud.transform, audioService);
 
             var popupGo = Instantiate(popupPrefab, canvasGo.transform, "Popup", Vector2.zero);
             var popup = popupGo.GetComponent<PopupView>();
@@ -229,6 +230,7 @@ namespace SlotMachine.EditorTools
             Set(game, "retroEffect", retro);
             Set(game, "soundToggle", soundToggle);
             Set(game, "filterToggle", filterToggle);
+            Set(game, "autoplayPanel", autoplayPanel);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -400,7 +402,7 @@ namespace SlotMachine.EditorTools
 
             // ----- top banner and bottom controls hint
             var message = AddText("Message", hudRoot, heading, "PULL THE LEVER OR PRESS SPACE", 18, Lavender, new Vector2(760, 30), new Vector2(-43, 304));
-            var controls = AddText("Controls", hudRoot, body, "SPACE: SPIN / STOP    ARROWS: BET\nM: SOUND    P: FILTER", 22,
+            var controls = AddText("Controls", hudRoot, body, "SPACE: SPIN / STOP    ARROWS: BET\nM: SOUND    P: FILTER    A: AUTO", 22,
                 new Color(0.6f, 0.62f, 0.85f), new Vector2(290, 50), new Vector2(-477, -296));
             controls.lineSpacing = -8f;
 
@@ -436,6 +438,61 @@ namespace SlotMachine.EditorTools
             Set(view, "onSprite", LoadSprite(icons, onIcon));
             Set(view, "offSprite", LoadSprite(icons, offIcon));
             return view;
+        }
+
+        /// <summary>Autoplay under the paytable: spin-count arrows, the count, START / STOP and its stop rules.</summary>
+        private static AutoplayView BuildAutoplayPanel(Transform parent, AudioService audioService)
+        {
+            var root = Rect("Autoplay", parent, new Vector2(248, 110), new Vector2(477, -296));
+            var caption = AddText("Caption", root, heading, "AUTOPLAY", 12, Gold, new Vector2(240, 16), new Vector2(0, 38));
+
+            const string left = Buttons + "button_arrow_left_sheet.png";
+            const string right = Buttons + "button_arrow_right_sheet.png";
+            var fewer = AddSpriteButton(Rect("Fewer", root, new Vector2(34, 34), new Vector2(-100, -4)),
+                LoadSprite(left, "arrow_left_normal"), LoadSprite(left, "arrow_left_highlight"),
+                LoadSprite(left, "arrow_left_pressed"), LoadSprite(left, "arrow_left_disabled"));
+            var count = AddText("Count", root, heading, "10", 16, Color.white, new Vector2(48, 20), new Vector2(-59, -4));
+            var more = AddSpriteButton(Rect("More", root, new Vector2(34, 34), new Vector2(-18, -4)),
+                LoadSprite(right, "arrow_right_normal"), LoadSprite(right, "arrow_right_highlight"),
+                LoadSprite(right, "arrow_right_pressed"), LoadSprite(right, "arrow_right_disabled"));
+
+            const string gold = Buttons + "button_gold_wide_sheet.png";
+            var toggle = AddSpriteButton(Rect("StartStop", root, new Vector2(120, 46), new Vector2(62, -4)),
+                LoadSprite(gold, "gold_wide_normal"), LoadSprite(gold, "gold_wide_highlight"),
+                LoadSprite(gold, "gold_wide_pressed"), LoadSprite(gold, "gold_wide_disabled"));
+            var label = AddText("Label", toggle.transform, heading, "START", 12, Color.white, new Vector2(110, 16), new Vector2(0, 2));
+            label.fontSharedMaterial = ShadowMaterial();
+
+            var hint = AddText("Hint", root, body, "STOPS FOR BIG WINS", 18, Lavender, new Vector2(248, 16), new Vector2(0, -42));
+
+            foreach (var button in new[] { fewer, more, toggle }) AddClick(button, audioService);
+
+            var view = root.gameObject.AddComponent<AutoplayView>();
+            Set(view, "fewer", fewer);
+            Set(view, "more", more);
+            Set(view, "toggle", toggle);
+            Set(view, "count", count);
+            Set(view, "toggleLabel", label);
+            Set(view, "caption", caption);
+            Set(view, "hint", hint);
+            return view;
+        }
+
+        /// <summary>
+        /// The heading font with a dark drop shadow (a TextMeshPro underlay), so
+        /// white labels read on the gold buttons like the provided YES / NO art.
+        /// </summary>
+        private static Material ShadowMaterial()
+        {
+            string path = Fonts + "PressStart2P SDF Shadow.mat";
+            DeleteIfExists(path);
+            var material = new Material(heading.material) { name = "PressStart2P SDF Shadow" };
+            material.EnableKeyword("UNDERLAY_ON");
+            material.SetColor("_UnderlayColor", new Color(0.16f, 0.08f, 0.02f, 0.95f));
+            material.SetFloat("_UnderlayOffsetX", 0.7f);
+            material.SetFloat("_UnderlayOffsetY", -0.7f);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
         }
 
         private static void SetLabel(GameObject infoBox, string text) =>
