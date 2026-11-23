@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17ef40057fcb24e0a82b20ec5b23028c, type: 3}
+  m_Name: SlotMachineConfig
+  m_EditorClassIdentifier: Assembly-CSharp::SlotMachine.Gameplay.SlotMachineConfig
+  symbols:
+  - {fileID: 11400000, guid: 084376a553a944058821d5bdfe414c5b, type: 2}
+  - {fileID: 11400000, guid: d82c61659d6b44937a8c325ccbd5ec82, type: 2}
+  - {fileID: 11400000, guid: 7dbb109a560184d068c9eb9e61042d99, type: 2}
+  - {fileID: 11400000, guid: 95e449b98574240c3bfcf3227de7d37a, type: 2}
+  betOptions: 0a0000003200000064000000
+  startingCredits: 1000
+  jackpotSymbol: 0
+  jackpotSeed: 1000
+  jackpotContributionPercent: 10
+  reelCount: 3
+  stripSeed: 7
