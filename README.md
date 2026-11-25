@@ -50,7 +50,7 @@ python3 -m http.server 8000
 
 Then open <http://localhost:8000>. Any static server works, such as `npx serve`.
 
-The build is Gzip-compressed (about 11 MB) with Unity's decompression fallback turned on. It runs on any static host and needs no special server headers.
+The build is a 4.7 MB download. It is Brotli-compressed with Unity's decompression fallback turned on, so it runs on any static host and needs no special server headers. Release builds use Unity's recommended Web size settings (High code stripping, Disk Size with LTO, IL2CPP optimised for size), and the project leaves out the engine modules it doesn't use, such as UI Toolkit and 3D physics. That took the download from 11.4 MB to 4.7 MB, and the load on a 5 Mbps connection from about 20 s to 9 s.
 
 ## How to open the project in Unity
 
