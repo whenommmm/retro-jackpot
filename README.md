@@ -12,7 +12,7 @@ I made it for the Underpin Services Unity Slot Game assignment.
 
 ## Game overview
 
-You start with 1,000 credits. Pick a bet of 10, 50 or 100 and pull the lever. You win when all three reels stop on the same symbol on the payline, which is the thin red line across the middle row.
+You start with 1,000 credits. Pick a bet of 10, 50 or 100 and pull the lever. You win when all three reels stop on the same symbol on the payline, which is the middle row.
 
 | Line | Pays | Chance per spin |
 |---|---|---|

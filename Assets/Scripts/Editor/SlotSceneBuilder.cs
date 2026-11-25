@@ -312,9 +312,6 @@ namespace SlotMachine.EditorTools
                 reels[i] = Instantiate(reelPrefab, machine, "Reel_" + (i + 1), position).GetComponent<ReelView>();
             }
 
-            // Thin red payline marker across the windows (only visible through the glass).
-            AddImage(Rect("PaylineMarker", machine, new Vector2(368, 2), lineCentre), white, new Color(1f, 0.25f, 0.25f, 0.55f));
-
             AddImage(Rect("Frame", machine, new Vector2(816, 624), Vector2.zero), LoadSprite(Machine + "machine_frame.png"));
 
             glows = new WindowGlow[ReelWindows.Length];
